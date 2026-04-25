@@ -68,7 +68,7 @@ const EditableNode = ({ data, selected }: NodeProps<AppNode>) => {
   const typeStyles = {
     cause: { border: 'border-green-500', text: 'text-green-600', label: '', handle: 'text-green-500', placeholder: '내용을 입력하세요...' },
     result: { border: 'border-red-400', text: 'text-red-500', label: '최종 결과', handle: 'text-red-400', placeholder: '내용을 입력하세요...' },
-    root: { border: 'border-blue-500', text: 'text-blue-600', label: '원인 행동(상태)', handle: 'text-blue-500', placeholder: '원인 행동(상태) 입력' },
+    root: { border: 'border-blue-500', text: 'text-blue-600', label: '시작점(행동/상태)', handle: 'text-blue-500', placeholder: '시작점(행동/상태) 입력' },
     info: { border: 'border-amber-200 bg-amber-50', text: 'text-amber-600', label: '부연 설명', handle: 'text-amber-300', placeholder: '설명 입력...' },
     solution: { border: 'border-yellow-400 bg-yellow-50', text: 'text-yellow-600', label: '해결책', handle: 'text-yellow-400', placeholder: '실행 가능한 해결책 입력...' },
     and: { border: '', text: '', label: '', handle: '', placeholder: '' }
@@ -159,11 +159,16 @@ export default function App() {
 function BranchApp() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [isReviewing, setIsReviewing] = useState(false);
+  const [isReviewingCausality, setIsReviewingCausality] = useState(false);
+  const [isReviewingSolutions, setIsReviewingSolutions] = useState(false);
+  const [causalityReviewed, setCausalityReviewed] = useState(false);
+  const [solutionsReviewed, setSolutionsReviewed] = useState(false);
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { fitView, zoomIn, zoomOut } = useReactFlow();
+
+  const isReviewing = isReviewingCausality || isReviewingSolutions;
 
   // Function to update node text
   const updateNodeLabel = useCallback((nodeId: string, label: string) => {
@@ -226,28 +231,30 @@ function BranchApp() {
   }, [setNodes, updateNodeLabel]);
 
   const handleAiReview = async () => {
-    setIsReviewing(true);
+    setIsReviewingCausality(true);
     setAiResponse(null);
     try {
       const response = await reviewCausality(nodes, edges);
       setAiResponse(response);
+      setCausalityReviewed(true);
     } catch (err) {
       setAiResponse("검토 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
-      setIsReviewing(false);
+      setIsReviewingCausality(false);
     }
   };
 
   const handleSolutionReview = async () => {
-    setIsReviewing(true);
+    setIsReviewingSolutions(true);
     setAiResponse(null);
     try {
       const response = await reviewSolutions(nodes, edges);
       setAiResponse(response);
+      setSolutionsReviewed(true);
     } catch (err) {
       setAiResponse("해결책 검토 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
-      setIsReviewing(false);
+      setIsReviewingSolutions(false);
     }
   };
 
@@ -319,16 +326,16 @@ function BranchApp() {
               onClick={handleAiReview}
               disabled={isReviewing}
               className={`flex items-center px-4 py-1.5 rounded-full border transition-all cursor-pointer ${
-                isReviewing ? 'bg-blue-50 text-blue-700 border-blue-200' : 'text-gray-500 hover:bg-blue-600 hover:text-white hover:border-blue-600 border-gray-200 shadow-sm'
+                isReviewingCausality || causalityReviewed ? 'bg-blue-50 text-blue-700 border-blue-200' : 'text-gray-500 hover:bg-blue-600 hover:text-white hover:border-blue-600 border-gray-200 shadow-sm'
               }`}
             >
               <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] mr-2 font-bold ${
-                isReviewing ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500 group-hover:bg-blue-200'
+                isReviewingCausality || causalityReviewed ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500 group-hover:bg-blue-200'
               }`}>
-                {isReviewing ? <Loader2 className="w-3 h-3 animate-spin" /> : '2'}
+                {isReviewingCausality ? <Loader2 className="w-3 h-3 animate-spin" /> : '2'}
               </span>
               <span className="text-xs font-bold">AI로 인과관계 검토하기</span>
-              <Sparkles className={`w-3 h-3 ml-1.5 ${isReviewing ? 'text-blue-500' : 'text-current opacity-70'}`} />
+              <Sparkles className={`w-3 h-3 ml-1.5 ${isReviewingCausality || causalityReviewed ? 'text-blue-500' : 'text-current opacity-70'}`} />
             </button>
 
             <div className="w-4 h-[1px] bg-gray-300 mx-1"></div>
@@ -337,16 +344,16 @@ function BranchApp() {
               onClick={handleSolutionReview}
               disabled={isReviewing}
               className={`flex items-center px-4 py-1.5 rounded-full border transition-all cursor-pointer ${
-                isReviewing ? 'bg-amber-50 text-amber-700 border-amber-200' : 'text-gray-500 hover:bg-amber-500 hover:text-white hover:border-amber-500 border-gray-200 shadow-sm'
+                isReviewingSolutions || solutionsReviewed ? 'bg-amber-50 text-amber-700 border-amber-200' : 'text-gray-500 hover:bg-amber-500 hover:text-white hover:border-amber-500 border-gray-200 shadow-sm'
               }`}
             >
               <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] mr-2 font-bold ${
-                isReviewing ? 'bg-amber-600 text-white' : 'bg-gray-200 text-gray-500'
+                isReviewingSolutions || solutionsReviewed ? 'bg-amber-600 text-white' : 'bg-gray-200 text-gray-500'
               }`}>
-                {isReviewing ? <Loader2 className="w-3 h-3 animate-spin" /> : '3'}
+                {isReviewingSolutions ? <Loader2 className="w-3 h-3 animate-spin" /> : '3'}
               </span>
               <span className="text-xs font-bold">AI로 해결책 검토하기</span>
-              <Lightbulb className={`w-3 h-3 ml-1.5 ${isReviewing ? 'text-amber-500' : 'text-current opacity-70'}`} />
+              <Lightbulb className={`w-3 h-3 ml-1.5 ${isReviewingSolutions || solutionsReviewed ? 'text-amber-500' : 'text-current opacity-70'}`} />
             </button>
           </div>
 
@@ -356,7 +363,7 @@ function BranchApp() {
             className="px-4 py-2 text-xs font-bold bg-[#1a1a1a] text-white rounded-md hover:opacity-90 transition-opacity flex items-center gap-2"
           >
             <Download className="w-3 h-3" />
-            저장하기
+            이미지로 저장하기
           </button>
         </div>
       </nav>
@@ -390,7 +397,7 @@ function BranchApp() {
             nodeColor={(n) => {
               if (n.data?.type === 'result') return '#f87171';
               if (n.data?.type === 'cause') return '#16a34a';
-              if (n.data?.type === 'root') return '#3b82f6';
+              if (n.data?.type === 'root') return '#3b82f6'; // 시작점(행동/상태)
               if (n.data?.type === 'and') return '#1e293b';
               if (n.data?.type === 'solution') return '#facc15';
               return '#cbd5e1';
